@@ -56,7 +56,6 @@ int main(int argc, char *argv[]){
   //ドロネー三角形分割
   auto startTime = chrono::system_clock::now();
   cout << "三角形分割実行中…" << endl;
-  // Tercel::Delaunay3d::getDelaunayTriangles(vertices[0], &triangles);
   for(it = vertices[0].begin(); it != vertices[0].end(); it++){
     T.insert(Point3(it->x, it->y, it->z));
   }
@@ -65,18 +64,20 @@ int main(int argc, char *argv[]){
   cout << "三角形分割が完了しました。 (" << chrono::duration_cast<chrono::milliseconds>(timeSpan).count() << "ms)" << endl;
 
   //Geomview出力
-  // CGAL::Geomview_stream gv(CGAL::Bbox_3(-7600, -36050, 0, -6500, -36050, 40));
-  // gv.set_line_width(4);
-  // gv.set_bg_color(CGAL::Color(0, 200, 200));
-  // // cout << "Drawing Terrain in wired mode.\n";
-  // // gv.set_wired(true);
-  // // gv << T;
-  // // sleep(5);
-  // gv.clear();
-  // cout << "Drawing Terrain in non-wired mode.\n";
-  // gv.set_wired(false);
-  // gv << T;
-  tmpfile << T;
+  #if 0
+    CGAL::Geomview_stream gv(CGAL::Bbox_3(-7600, -36050, 0, -6500, -36050, 40));
+    gv.set_line_width(4);
+    gv.set_bg_color(CGAL::Color(0, 200, 200));
+    // cout << "Drawing Terrain in wired mode.\n";
+    // gv.set_wired(true);
+    // gv << T;
+    // sleep(5);
+    gv.clear();
+    cout << "Drawing Terrain in non-wired mode.\n";
+    gv.set_wired(false);
+    gv << T;
+    tmpfile << T;
+  #endif
 
   //VRMLファイル出力
   startTime = chrono::system_clock::now();
