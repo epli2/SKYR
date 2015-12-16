@@ -1,6 +1,6 @@
 #!/bin/make
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -O3 -march=native -pipe -DCGAL_NDEBUG
+CXXFLAGS = -std=c++11 -Wall -O3 -march=native -pipe -DCGAL_NDEBUG -I/usr/local/include
 LDFLAGS = -lCGAL -lgmp
 OBJS = MyMain
 
