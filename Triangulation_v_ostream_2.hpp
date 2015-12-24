@@ -27,4 +27,6 @@ namespace CGAL {
     }
     return os.str();
   }
+
+  
 } //namespace CGAL
