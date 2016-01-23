@@ -1,6 +1,6 @@
 #include <limits.h>
 #include <float.h>
-#define NDAT 1000
+#define NDAT 1150
 #define N 1100000
 
 typedef struct _range{

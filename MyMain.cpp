@@ -39,12 +39,10 @@ int height;
 void fileInput(char* filename, vector<Point> &vertices);
 vector<vector<char>> detectRoad(vector<Point> &verticesRaw);
 void reduceBlack(vector<vector<char>> &resultarray, vector<vector<char>> &resultarray2);
-template < class GT, class TDS >
-string printvertexVRML(const CGAL::Triangulation_2<GT,TDS> &T);
-template < class GT, class TDS >
-string printcolorVRML(const CGAL::Triangulation_2<GT,TDS> &T, vector<vector<char>> roadFrag);
-
-
+template < class GT, class TDS > string printvertexVRML(const CGAL::Triangulation_2<GT,TDS> &T);
+template < class GT, class TDS > string printfacesVRML(const CGAL::Triangulation_2<GT,TDS> &T, vector<Point> &vertices);
+template < class GT, class TDS > string printcolorVRML(const CGAL::Triangulation_2<GT,TDS> &T, vector<vector<char>> &roadFrag);
+void addPerimeterPoint(vector<Point> &vertices, vector<Point> &verticesRaw);
 
 int main(int argc, char *argv[]){
   char* rawdat = NULL;
@@ -62,6 +60,8 @@ int main(int argc, char *argv[]){
   Point3 p;
   fileInput(rawdat, verticesRaw);
   fileInput(deleteddat, verticesDeleted);
+  addPerimeterPoint(verticesDeleted, verticesRaw);
+
   // thread t1(fileInput, filename[0], 0);
   // thread t2(fileInput, filename[1], 1);
   // thread t3(fileInput, filename[2], 2);
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]){
   cout << "]} color Color { color [.4 .4 .4, .8 .6 .4, .2 .3 .2]}" << endl;
   //つなぐ点
   cout << "coordIndex[" << endl;
-  cout << my_show_triangulation_faces(T);
+  cout << printfacesVRML(T, verticesRaw);
   cout << "]" << endl;
   //色指定
   cout << "colorIndex [" << endl;
@@ -164,12 +164,66 @@ void fileInput(char* filename, vector<Point> &vertices){
     vertices.push_back(v);
     i++;
   }
+  width = maxx - minx + 1;
+  height = maxy - miny + 1;
+  // cerr << maxx << " " << minx << " " << maxy << " " << miny << " " << maxz << endl;
   auto endTime = chrono::system_clock::now();
   auto timeSpan = endTime - startTime;
   cerr << filename << "のデータを入力しました。 (" << chrono::duration_cast<chrono::milliseconds>(timeSpan).count() << "ms)" << endl;
   cerr << "データ数 = " << i << endl;
   cerr << "欠損点数 = " << lost_n << endl;
 }
+
+
+void addPerimeterPoint(vector<Point> &vertices, vector<Point> &verticesRaw){
+  auto itrNewEnd = remove_if(vertices.begin(), vertices.end(), [](Point p)->bool{ return (int)p.x == minx || (int)p.x == maxx || (int)p.y == maxy || (int)p.y == miny; });
+  vertices.erase(itrNewEnd,vertices.end());
+  vector<vector<float>> pointsarray (height, vector<float>(width));
+  vector<vector<float>> pointsarray2 (height, vector<float>(width));
+
+  for(int y=height - 1; y >= 0; y--){
+    for(int x=0; x < width; x++){
+      pointsarray[y][x] = -9999;
+    }
+  }
+
+  for(vector<Point>::iterator it = verticesRaw.begin(); it != verticesRaw.end(); it++){
+    pointsarray[(int)it->y - miny][(int)it->x - minx] = it->z;
+  }
+
+  for(int y=height - 1; y >= 0; y--){
+    int upper = (y+1 < height - 1) ? y+1 : height - 1;
+    int lower = (y-1 > 0) ? y-1 : 0;
+    for(int x=0; x < width; x++){
+      int left = (x-1 > 0) ? x-1 : 0;
+      int right = (x+1 < width-1) ? x+1 : width - 1;
+      float neighbor[8];
+      int num = 0;
+      for(int yy=upper; yy >= lower; yy--){
+        for(int xx=left; xx <= right; xx++){
+          if(pointsarray[yy][xx] > -9999){
+            neighbor[num] = pointsarray[yy][xx];
+            num++;
+          }
+        }
+      }
+      pointsarray2[y][x] = (num % 2 == 0) ? (neighbor[num/2-1] + neighbor[num/2])/2 : neighbor[num/2];
+    }
+  }
+  for(int i = 0; i < width; i++){
+    Point pmin = {(float)(minx + i), (float)miny, pointsarray2[0][i]};
+    Point pmax = {(float)(minx + i), (float)maxy, pointsarray2[height - 1][i]};
+    vertices.push_back(pmin);
+    vertices.push_back(pmax);
+  }
+  for(int i = 1; i < height - 1; i++){
+    Point pmin = {(float)minx, (float)(miny + i), pointsarray2[i][0]};
+    Point pmax = {(float)maxx, (float)(miny + i), pointsarray2[i][width - 1]};
+    vertices.push_back(pmin);
+    vertices.push_back(pmax);
+  }
+}
+
 
 void reduceBlack(vector<vector<char>> &resultarray, vector<vector<char>> &resultarray2){
   for(int y=height - 1; y >= 0; y--){
@@ -197,8 +251,6 @@ void reduceBlack(vector<vector<char>> &resultarray, vector<vector<char>> &result
 }
 
 vector<vector<char>> detectRoad(vector<Point> &verticesRaw){
-  width = maxx - minx + 1;
-  height = maxy - miny + 1;
   vector<vector<float>> pointsarray (height, vector<float>(width));
   vector<vector<float>> pointsarray2 (height, vector<float>(width));
   vector<vector<char>> resultarray (height, vector<char>(width));
@@ -253,7 +305,7 @@ vector<vector<char>> detectRoad(vector<Point> &verticesRaw){
       if(num > total*PERCENT) resultarray[y][x] = 1;
     }
   }
-  
+
   for(int i=0; i < 20; i++){
     reduceBlack(resultarray, resultarray2);
     reduceBlack(resultarray2, resultarray);
@@ -271,9 +323,10 @@ vector<vector<char>> detectRoad(vector<Point> &verticesRaw){
     // }
     cerr << i << " " << flush;
   }
-
+  cerr << endl;
   return resultarray;
 }
+
 
 template < class GT, class TDS >
 string printvertexVRML(const CGAL::Triangulation_2<GT,TDS> &T){
@@ -283,11 +336,78 @@ string printvertexVRML(const CGAL::Triangulation_2<GT,TDS> &T){
       Point3 p = vit->point();
       os << p.x() << ", " << p.y() << ", " << p.z() << endl;
   }
+  //3Dプリンタ用
+  // for(int i = 0; i < width; i++){
+  //   os << minx + i << ", " << maxy << ", " << minz - 10 << endl;
+  //   os << minx + i << ", " << miny << ", " << minz - 10 << endl;
+  // }
+  // for(int i = 1; i < height - 1; i++){
+  //   os << maxx << ", " << miny + i << ", " << minz - 10 << endl;
+  //   os << minx << ", " << miny + i << ", " << minz - 10 << endl;
+  // }
+  os << minx << ", " << maxy << ", " << minz - 10 << endl;
+  os << minx << ", " << miny << ", " << minz - 10 << endl;
+  os << maxx << ", " << maxy << ", " << minz - 10 << endl;
+  os << maxx << ", " << miny << ", " << minz - 10 << endl;
   return os.str();
 }
 
 template < class GT, class TDS >
-string printcolorVRML(const CGAL::Triangulation_2<GT,TDS> &T, vector<vector<char>> roadFrag){
+string printfacesVRML(const CGAL::Triangulation_2<GT,TDS> &T, vector<Point> &vertices){
+  ostringstream os;
+
+  // Finite vertices coordinates.
+  map<typename CGAL::Triangulation_2<GT, TDS>::Vertex_handle, int> V;
+  vector<vector<int>> pointsarray (height, vector<int>(width));
+  int inum = 0;
+  for( typename CGAL::Triangulation_2<GT, TDS>::Vertex_iterator
+    vit = T.vertices_begin(); vit != T.vertices_end(); ++vit) {
+      Point3 p = vit->point();
+      V[vit] = inum;
+      pointsarray[(int)p.y() - miny][(int)p.x() - minx] = inum;
+      inum++;
+  }
+
+
+  // Finite faces indices.
+  for( typename CGAL::Triangulation_2<GT, TDS>::Face_iterator
+    fit = T.faces_begin(); fit != T.faces_end(); ++fit) {
+      for (int i=0; i<3; i++)
+        os << V[fit->vertex(i)] << "," << flush;
+      os << "-1,\n" << flush;
+  }
+
+  //x=minxの側面
+  os << inum << "," << inum + 1 << ",";
+  for(int y = 0; y < height; y++){
+    os << pointsarray[y][0] << ",";
+  }
+  os << "-1,\n" << flush;
+  //x=maxxの側面
+  os << inum + 3 << "," << inum + 2 << ",";
+  for(int y = height -1; y >= 0; y--){
+    os << pointsarray[y][maxx - minx] << ",";
+  }
+  os << "-1,\n" << flush;
+  //y=minyの側面
+  os << inum + 1 << "," << inum + 3 << ",";
+  for(int x = width - 1; x >= 0; x--){
+    os << pointsarray[0][x] << ",";
+  }
+  os << "-1,\n" << flush;
+  //y=maxyの側面
+  os << inum + 2 << "," << inum << ",";
+  for(int x = 0; x < width; x++){
+    os << pointsarray[maxy - miny][x] << ",";
+  }
+  os << "-1,\n" << flush;
+  //底
+  os << inum + 2 << "," << inum + 3 << "," << inum + 1 << "," << inum << "," << "-1,\n" << flush;
+  return os.str();
+}
+
+template < class GT, class TDS >
+string printcolorVRML(const CGAL::Triangulation_2<GT,TDS> &T, vector<vector<char>> &roadFrag){
   ostringstream os;
   char nowfrag = 0;
   for( typename CGAL::Triangulation_2<GT, TDS>::Face_iterator
@@ -299,5 +419,31 @@ string printcolorVRML(const CGAL::Triangulation_2<GT,TDS> &T, vector<vector<char
     }
     os << "0," << flush;
   }
+  //x=minxの側面
+  os << 1 << "," << 1 << ",";
+  for(int y = 0; y < height; y++){
+    os << (int)roadFrag[y][0] << ",";
+  }
+  os << "0," << flush;
+  //x=maxxの側面
+  os << 1 << "," << 1 << ",";
+  for(int y = height -1; y >= 0; y--){
+    os << (int)roadFrag[y][maxx - minx] << ",";
+  }
+  os << "0," << flush;
+  //y=minyの側面
+  os << 1 << "," << 1 << ",";
+  for(int x = width - 1; x >= 0; x--){
+    os << (int)roadFrag[0][x] << ",";
+  }
+  os << "0," << flush;
+  //y=maxyの側面
+  os << 1 << "," << 1 << ",";
+  for(int x = 0; x < width; x++){
+    os << (int)roadFrag[maxy - miny][x] << ",";
+  }
+  os << "0," << flush;
+  //底
+  os << 1 << "," << 1 << "," << 1 << "," << 1 << "," << "0," << flush;
   return os.str();
 }

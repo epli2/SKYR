@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "input_array_new.h"
 
-#define NDAT 1000
+#define NDAT 1150
 #define N 1100000
 
 void delete_point(float** p,float** q,Range range,char** flag, float m);
@@ -18,9 +18,9 @@ int main(int argc, char** argv)
   if(argc > 1) fname = argv[1];
   if(argc > 2) m = atof(argv[2]);
   int i, n;
-  char ** flag = (char**)malloc2d(NDAT + 150, NDAT + 150, sizeof(char));
-  float** points = (float**)malloc2d(NDAT + 150, NDAT + 150, sizeof(float));
-  float** pointq = (float**)malloc2d(NDAT + 150, NDAT + 150, sizeof(float));
+  char ** flag = (char**)malloc2d(NDAT, NDAT, sizeof(char));
+  float** points = (float**)malloc2d(NDAT, NDAT, sizeof(float));
+  float** pointq = (float**)malloc2d(NDAT, NDAT, sizeof(float));
   Range range;
   Point *p = malloc(sizeof(Point) * N);
 

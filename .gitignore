@@ -35,5 +35,6 @@ dat/
 others/
 tercel/
 hisa/
+cgal_sample/
 MyMain
 *.wrl
